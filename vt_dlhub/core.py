@@ -2,7 +2,7 @@ import requests, re, os, json, mimetypes
 from bs4 import BeautifulSoup
 
 class DLHub:
-    def __init__(self, url, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)", "Accept": "text/html",}, output_prefix="dlhub_", output_dir=None, filename=None):
+    def __init__(self, url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)', 'Accept-Language': 'en-US,en;q=0.9', }, output_prefix="dlhub_", output_dir=None, filename=None):
         self.input_url = url
         self.output_prefix = output_prefix
         self.output_dir = output_dir
@@ -108,6 +108,15 @@ class DLHub:
                             'id': media_id,
                             'filename': self.getFileName(media_id, 'jpg'),
                         })
+                
+                for audio in soup.find_all("audio"):
+                    self.result['media'].append({
+                        'type': 'audio',
+                        'url': audio.get("src"),
+                        'cookies': resp.cookies.get_dict(),
+                        'id': media_id,
+                        'filename': self.getFileName(media_id, 'mp3'),
+                    })
 
             
                 script_tag = soup.find("script", id="__FRONTITY_CONNECT_STATE__")
