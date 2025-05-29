@@ -70,9 +70,6 @@ class DLHub:
                 
                 if script_tag:
                     data = json.loads(script_tag.string)
-                    
-                    with open(f"{media_id}.json", "w", encoding="utf-8") as f:
-                        json.dump(data, f, ensure_ascii=False, indent=4)
 
                     scopes = ["webapp.video-detail", "webapp.reflow.video.detail"]
                     
