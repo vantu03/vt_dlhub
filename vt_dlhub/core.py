@@ -61,97 +61,97 @@ class DLHub:
             
             match = re.search(r'/(video|photo)/(\d+)', self.result["final_url"])
             
-            if match:
-                media_type = match.group(1)
-                media_id = match.group(2)
+            media_type = match.group(1)
+            media_id = match.group(2)
+            
+            soup = BeautifulSoup(resp.text, "html.parser")
+            script_tag = soup.find("script", {"id": "__UNIVERSAL_DATA_FOR_REHYDRATION__"})
+            
+            if script_tag:
+                data = json.loads(script_tag.string)
+
+                scopes = ["webapp.video-detail", "webapp.reflow.video.detail"]
                 
-                soup = BeautifulSoup(resp.text, "html.parser")
-                script_tag = soup.find("script", {"id": "__UNIVERSAL_DATA_FOR_REHYDRATION__"})
-                
-                if script_tag:
-                    data = json.loads(script_tag.string)
+                for scope in scopes:
 
-                    scopes = ["webapp.video-detail", "webapp.reflow.video.detail"]
-                    
-                    for scope in scopes:
+                    #Meta
+                    meta = (
+                        data.get("__DEFAULT_SCOPE__", {})
+                            .get(scope, {})
+                            .get("shareMeta", {})
+                    )
+                    if meta:
+                        self.result['title'] = meta.get('title', '')
+                        self.result['desc'] = meta.get('desc', '')
+                        self.result['cover_url'] = meta.get('cover_url', '')
 
-                        #Meta
-                        meta = (
-                            data.get("__DEFAULT_SCOPE__", {})
-                                .get(scope, {})
-                                .get("shareMeta", {})
-                        )
-                        if meta:
-                            self.result['title'] = meta.get('title', '')
-                            self.result['desc'] = meta.get('desc', '')
-                            self.result['cover_url'] = meta.get('cover_url', '')
+                    #Video
+                    video = (
+                        data.get("__DEFAULT_SCOPE__", {})
+                            .get(scope, {})
+                            .get("itemInfo", {})
+                            .get("itemStruct", {})
+                            .get("video", {})
+                    )
 
-                        #Video
-                        video = (
-                            data.get("__DEFAULT_SCOPE__", {})
-                                .get(scope, {})
-                                .get("itemInfo", {})
-                                .get("itemStruct", {})
-                                .get("video", {})
-                        )
-
-                        if video:
-                            if video.get('playAddr'):
-                                self.result['media'].append({
-                                    'type': 'video',
-                                    'url': video.get('playAddr'),
-                                    'cookies': resp.cookies.get_dict(),
-                                    'id': media_id,
-                                    'width': video.get('width', None),
-                                    'height': video.get('height', None),
-                                    'filename': self.getFileName(media_id, 'mp4'),
-                                })
-                                
-                            if video.get('cover'):
-                                self.result['cover'] = video.get('cover', '')
-                        #Music
-                        music = (
-                            data.get("__DEFAULT_SCOPE__", {})
-                                .get(scope, {})
-                                .get("itemInfo", {})
-                                .get("itemStruct", {})
-                                .get("music", {})
-                        )
-
-                        if music and music.get('playUrl'):
+                    if video:
+                        if video.get('playAddr'):
                             self.result['media'].append({
-                                'type': 'music',
-                                'url': music.get('playUrl'),
+                                'type': 'video',
+                                'url': video.get('playAddr'),
                                 'cookies': resp.cookies.get_dict(),
                                 'id': media_id,
-                                'width': None,
-                                'height': None,
+                                'width': video.get('width', None),
+                                'height': video.get('height', None),
                                 'filename': self.getFileName(media_id, 'mp4'),
                             })
                             
-                        #URL Images
-                        images = (
-                            data.get("__DEFAULT_SCOPE__", {})
-                                .get(scope, {})
-                                .get("itemInfo", {})
-                                .get("itemStruct", {})
-                                .get("imagePost", {})
-                                .get("images", [])
-                        )
+                        if video.get('cover'):
+                            self.result['cover'] = video.get('cover', '')
+                    #Music
+                    music = (
+                        data.get("__DEFAULT_SCOPE__", {})
+                            .get(scope, {})
+                            .get("itemInfo", {})
+                            .get("itemStruct", {})
+                            .get("music", {})
+                    )
+
+                    if music and music.get('playUrl'):
+                        self.result['media'].append({
+                            'type': 'music',
+                            'url': music.get('playUrl'),
+                            'cookies': resp.cookies.get_dict(),
+                            'id': media_id,
+                            'width': None,
+                            'height': None,
+                            'filename': self.getFileName(media_id, 'mp4'),
+                        })
                         
-                        if images:
-    
-                            for image in images:
-                                for imageURL in image.get('imageURL', []).get('urlList', []):
-                                    self.result['media'].append({
-                                        'type': 'image',
-                                        'url': imageURL,
-                                        'cookies': resp.cookies.get_dict(),
-                                        'id': media_id,
-                                        'width': image.get('imageWidth', None),
-                                        'height': image.get('imageHeight', None),
-                                        'filename': self.getFileName(media_id, 'jpg'),
-                                    })
+                    #URL Images
+                    images = (
+                        data.get("__DEFAULT_SCOPE__", {})
+                            .get(scope, {})
+                            .get("itemInfo", {})
+                            .get("itemStruct", {})
+                            .get("imagePost", {})
+                            .get("images", [])
+                    )
+                    
+                    if images:
+
+                        for image in images:
+                            for imageURL in image.get('imageURL', []).get('urlList', []):
+                                self.result['media'].append({
+                                    'type': 'image',
+                                    'url': imageURL,
+                                    'cookies': resp.cookies.get_dict(),
+                                    'id': media_id,
+                                    'width': image.get('imageWidth', None),
+                                    'height': image.get('imageHeight', None),
+                                    'filename': self.getFileName(media_id, 'jpg'),
+                                })
+            
             if download:
                 
                 for index, item in enumerate(self.result["media"]):
