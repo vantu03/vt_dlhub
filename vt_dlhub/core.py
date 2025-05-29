@@ -125,7 +125,7 @@ class DLHub:
                             'id': media_id,
                             'width': None,
                             'height': None,
-                            'filename': self.getFileName(media_id, 'mp4'),
+                            'filename': self.getFileName(media_id, 'mp3'),
                         })
                         
                     #URL Images
