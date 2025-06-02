@@ -57,6 +57,9 @@ class DLHub:
         try:
             resp = requests.get(self.input_url, headers=self.headers, allow_redirects=True, timeout=10)
             resp.raise_for_status()
+
+            resp = requests.get(resp.url, headers=self.headers, cookies=resp.cookies, allow_redirects=True, timeout=10)
+            resp.raise_for_status()
             self.result["final_url"] = resp.url
             
             match = re.search(r'/(video|photo)/(\d+)', self.result["final_url"])
