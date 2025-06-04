@@ -19,7 +19,7 @@ class DLHub:
         self.output_dir = output_dir
         self.filename = filename
         self.headers = headers
-        self.result = {"media": []}
+        self.result = {"media": [], "trys": 0}
         self.count = 0
         
     def getFileCount(self, base, ext):
@@ -52,121 +52,129 @@ class DLHub:
         except Exception as e:
             print(str(e))
             
-    def run(self, download=False):
+    def run(self, download=False, maxtrys):
         
-        try:
-            resp = requests.get(self.input_url, headers=self.headers, allow_redirects=True, timeout=10)
-            resp.raise_for_status()
+        while self.result['trys'] < maxtrys:
 
-            resp = requests.get(resp.url, headers=self.headers, cookies=resp.cookies, allow_redirects=True, timeout=10)
-            resp.raise_for_status()
-            self.result["final_url"] = resp.url
-            
-            match = re.search(r'/(video|photo)/(\d+)', self.result["final_url"])
-            
-            media_type = match.group(1)
-            media_id = match.group(2)
-            
-            soup = BeautifulSoup(resp.text, "html.parser")
-            script_tag = soup.find("script", {"id": "__UNIVERSAL_DATA_FOR_REHYDRATION__"})
-            
-            if script_tag:
-                data = json.loads(script_tag.string)
+            self.result['trys'] += 1
 
-                scopes = ["webapp.video-detail", "webapp.reflow.video.detail"]
+            try:
+
+                resp = requests.get(self.input_url, headers=self.headers, allow_redirects=True, timeout=10)
+                resp.raise_for_status()
+
+                self.result["final_url"] = resp.url
                 
-                for scope in scopes:
+                match = re.search(r'/(video|photo)/(\d+)', self.result["final_url"])
+                
+                media_type = match.group(1)
+                media_id = match.group(2)
+                
+                soup = BeautifulSoup(resp.text, "html.parser")
+                script_tag = soup.find("script", {"id": "__UNIVERSAL_DATA_FOR_REHYDRATION__"})
+                
+                if script_tag:
+                    data = json.loads(script_tag.string)
 
-                    #Meta
-                    meta = (
-                        data.get("__DEFAULT_SCOPE__", {})
-                            .get(scope, {})
-                            .get("shareMeta", {})
-                    )
-                    if meta:
-                        self.result['title'] = meta.get('title', '')
-                        self.result['desc'] = meta.get('desc', '')
-                        self.result['cover_url'] = meta.get('cover_url', '')
-
-                    #Video
-                    video = (
-                        data.get("__DEFAULT_SCOPE__", {})
-                            .get(scope, {})
-                            .get("itemInfo", {})
-                            .get("itemStruct", {})
-                            .get("video", {})
-                    )
-
-                    if video:
-                        if video.get('playAddr'):
-                            self.result['media'].append({
-                                'type': 'video',
-                                'url': video.get('playAddr'),
-                                'cookies': resp.cookies.get_dict(),
-                                'id': media_id,
-                                'width': video.get('width', None),
-                                'height': video.get('height', None),
-                                'filename': self.getFileName(media_id, 'mp4'),
-                            })
-                            
-                        if video.get('cover'):
-                            self.result['cover'] = video.get('cover', '')
-                    #Music
-                    music = (
-                        data.get("__DEFAULT_SCOPE__", {})
-                            .get(scope, {})
-                            .get("itemInfo", {})
-                            .get("itemStruct", {})
-                            .get("music", {})
-                    )
-
-                    if music and music.get('playUrl'):
-                        self.result['media'].append({
-                            'type': 'music',
-                            'url': music.get('playUrl'),
-                            'cookies': resp.cookies.get_dict(),
-                            'id': media_id,
-                            'width': None,
-                            'height': None,
-                            'filename': self.getFileName(media_id, 'mp3'),
-                        })
-                        
-                    #URL Images
-                    images = (
-                        data.get("__DEFAULT_SCOPE__", {})
-                            .get(scope, {})
-                            .get("itemInfo", {})
-                            .get("itemStruct", {})
-                            .get("imagePost", {})
-                            .get("images", [])
-                    )
+                    scopes = ["webapp.video-detail", "webapp.reflow.video.detail"]
                     
-                    if images:
+                    for scope in scopes:
 
-                        for image in images:
-                            for imageURL in image.get('imageURL', []).get('urlList', []):
+                        #Meta
+                        meta = (
+                            data.get("__DEFAULT_SCOPE__", {})
+                                .get(scope, {})
+                                .get("shareMeta", {})
+                        )
+                        if meta:
+                            self.result['title'] = meta.get('title', '')
+                            self.result['desc'] = meta.get('desc', '')
+                            self.result['cover_url'] = meta.get('cover_url', '')
+
+                        #Video
+                        video = (
+                            data.get("__DEFAULT_SCOPE__", {})
+                                .get(scope, {})
+                                .get("itemInfo", {})
+                                .get("itemStruct", {})
+                                .get("video", {})
+                        )
+
+                        if video:
+                            if video.get('playAddr'):
                                 self.result['media'].append({
-                                    'type': 'image',
-                                    'url': imageURL,
+                                    'type': 'video',
+                                    'url': video.get('playAddr'),
                                     'cookies': resp.cookies.get_dict(),
                                     'id': media_id,
-                                    'width': image.get('imageWidth', None),
-                                    'height': image.get('imageHeight', None),
-                                    'filename': self.getFileName(media_id, 'jpg'),
+                                    'width': video.get('width', None),
+                                    'height': video.get('height', None),
+                                    'filename': self.getFileName(media_id, 'mp4'),
                                 })
-            
-            if download:
-                
-                for index, item in enumerate(self.result["media"]):
-                    path = self.download_file(item)
-                    if path:
-                        item['path'] = path 
-                
+                                
+                            if video.get('cover'):
+                                self.result['cover'] = video.get('cover', '')
+                        #Music
+                        music = (
+                            data.get("__DEFAULT_SCOPE__", {})
+                                .get(scope, {})
+                                .get("itemInfo", {})
+                                .get("itemStruct", {})
+                                .get("music", {})
+                        )
 
-            self.result["success"] = True
+                        if music and music.get('playUrl'):
+                            self.result['media'].append({
+                                'type': 'music',
+                                'url': music.get('playUrl'),
+                                'cookies': resp.cookies.get_dict(),
+                                'id': media_id,
+                                'width': None,
+                                'height': None,
+                                'filename': self.getFileName(media_id, 'mp3'),
+                            })
+                            
+                        #URL Images
+                        images = (
+                            data.get("__DEFAULT_SCOPE__", {})
+                                .get(scope, {})
+                                .get("itemInfo", {})
+                                .get("itemStruct", {})
+                                .get("imagePost", {})
+                                .get("images", [])
+                        )
+                        
+                        if images:
 
-        except Exception as e:
-            self.result["success"] = False
-            self.result["error"] = str(e)
-    
+                            for image in images:
+                                for imageURL in image.get('imageURL', []).get('urlList', []):
+                                    self.result['media'].append({
+                                        'type': 'image',
+                                        'url': imageURL,
+                                        'cookies': resp.cookies.get_dict(),
+                                        'id': media_id,
+                                        'width': image.get('imageWidth', None),
+                                        'height': image.get('imageHeight', None),
+                                        'filename': self.getFileName(media_id, 'jpg'),
+                                    })
+                
+                    if download:
+                        
+                        for index, item in enumerate(self.result["media"]):
+                            path = self.download_file(item)
+                            if path:
+                                item['path'] = path 
+                        
+
+                    self.result["success"] = True
+                    if self.result['media']:
+                        break
+
+            except Exception as e:
+                self.result["error"] = self.result.get("error", "") + "\n[Try {}] {}".format(self.result["trys"], str(e))
+                if self.result['trys'] == maxtrys:
+                    self.result["success"] = False
+                else:
+                    time.sleep(1)
+
         return self.result
