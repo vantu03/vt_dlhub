@@ -52,7 +52,7 @@ class DLHub:
         except Exception as e:
             print(str(e))
             
-    def run(self, download=False, maxtrys):
+    def run(self, download=False, maxtrys=3):
         
         while self.result['trys'] < maxtrys:
 
